@@ -1,6 +1,8 @@
 //// A demonstration/reminder of how Actors are set up in Gleam.
+
 import gleam/io
 import gleam/otp/actor
+import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/dict.{type Dict}
 import gleam/erlang/process.{type Subject}
@@ -10,7 +12,7 @@ pub fn main() {
   let assert Ok(logger) = actor.start(Nil, handle_logger_message)
 
   io.println("Starting a logging actor")
-  let initial_name_tally_state: TallyState =
+  let initial_name_tally_state =
     TallyState(label: "Names", tally: dict.new(), logger: logger)
 
   io.println("Starting a tallying actor")
@@ -18,11 +20,14 @@ pub fn main() {
     actor.start(initial_name_tally_state, handle_name_message)
 
   io.println("Sending a bunch of talliable messages.")
-  process.send(name_tally, Introduce("Joe"))
-  process.send(name_tally, Introduce("Alice"))
-  process.send(name_tally, Introduce("Joe"))
-  process.send(name_tally, Introduce("Benny"))
-  process.send(name_tally, Summarize)
+  [
+    Introduce("Joe"),
+    Introduce("Alice"),
+    Introduce("Joe"),
+    Introduce("Benny"),
+    Summarize,
+  ]
+  |> list.each(fn(msg) { process.send(name_tally, msg) })
 
   io.println("Sleeping")
   process.sleep(3)
