@@ -1,3 +1,4 @@
+//// A demonstration/reminder of how Actors are set up in Gleam.
 import gleam/io
 import gleam/otp/actor
 import gleam/option.{type Option, None, Some}
@@ -9,50 +10,52 @@ pub fn main() {
   let assert Ok(logger) = actor.start(Nil, handle_logger_message)
 
   io.println("Starting a logging actor")
-  let initial_name_tallier_state: TallierState =
-    TallierState(label: "Names", tally: dict.new(), logger: logger)
+  let initial_name_tally_state: TallyState =
+    TallyState(label: "Names", tally: dict.new(), logger: logger)
 
   io.println("Starting a tallying actor")
-  let assert Ok(name_tallier) =
-    actor.start(initial_name_tallier_state, handle_name_message)
+  let assert Ok(name_tally) =
+    actor.start(initial_name_tally_state, handle_name_message)
 
   io.println("Sending a bunch of talliable messages.")
-  process.send(name_tallier, Introduce("Joe"))
-  process.send(name_tallier, Introduce("Alice"))
-  process.send(name_tallier, Introduce("Joe"))
-  process.send(name_tallier, Introduce("Benny"))
-  process.send(name_tallier, Summarize)
+  process.send(name_tally, Introduce("Joe"))
+  process.send(name_tally, Introduce("Alice"))
+  process.send(name_tally, Introduce("Joe"))
+  process.send(name_tally, Introduce("Benny"))
+  process.send(name_tally, Summarize)
 
   io.println("Sleeping")
   process.sleep(3)
 
   io.println("Shutting down")
-  process.send(name_tallier, Shutdown)
+  process.send(name_tally, Shutdown)
   io.println("END")
 }
 
-type TallierState {
-  TallierState(
+pub type TallyState {
+  TallyState(
     label: String,
     tally: Dict(String, Int),
     logger: Subject(Option(String)),
   )
 }
 
-type Message {
+pub type TallyMessage {
   Introduce(String)
   Summarize
   Shutdown
 }
 
-fn handle_name_message(
-  message: Message,
-  state: TallierState,
-) -> actor.Next(Message, TallierState) {
+/// Counts the people it's been introduced to, and the number of times they've
+/// been met.
+pub fn handle_name_message(
+  message: TallyMessage,
+  state: TallyState,
+) -> actor.Next(TallyMessage, TallyState) {
   case message {
     Introduce(name) -> {
       let new_state =
-        TallierState(
+        TallyState(
           ..state,
           tally: dict.update(state.tally, name, fn(existing) {
             case existing {
@@ -77,7 +80,9 @@ fn handle_name_message(
   }
 }
 
-fn handle_logger_message(
+/// A very simple, stateless handler. Either gets a `String`, which it logs, or `None`,
+/// meaning shutdown.
+pub fn handle_logger_message(
   message: Option(String),
   state: Nil,
 ) -> actor.Next(Option(String), Nil) {
